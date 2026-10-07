@@ -170,6 +170,8 @@ button.tk{cursor:pointer}
 .aw .ic{font-size:22px;line-height:1}
 .aw b{display:block;font:700 13px/1.25 var(--f-display);margin:6px 0 4px}
 .aw span{display:block;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.aw.hid{opacity:.8;border-style:dotted}
+.aw.hid b,.aw.hid span{filter:blur(4.5px);user-select:none;-webkit-user-select:none}
 .aw .who{color:var(--zone-soft);font-weight:700;font-size:14px}
 .badges{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 2px}
 .note{margin-top:28px;font-size:13px;color:var(--muted);max-width:68ch}
@@ -607,23 +609,26 @@ if(typeof module!=="undefined")module.exports={parseCSV:parseCSV,parseSheetText:
 
   var awards=[];
   function parseAwards(rows){
-    var h=-1,i,j,out={};
+    var h=-1,i,j,out={},shown={};
     for(i=0;i<rows.length&&h<0;i++){if(rows[i].some(function(c){return /^категория/i.test(String(c).trim());}))h=i;}
     if(h<0)return [];
     var head=rows[h].map(function(c){return String(c).trim().toLowerCase();});
     var ci=head.findIndex(function(c){return c.indexOf("категор")===0;}),
         wi=head.findIndex(function(c){return c.indexOf("победител")===0;}),
         vi=head.findIndex(function(c){return c.indexOf("голос")===0;}),
-        ji=head.findIndex(function(c){return c.indexOf("шуточ")===0;});
+        ji=head.findIndex(function(c){return c.indexOf("шуточ")===0;}),
+        si=head.findIndex(function(c){return c.indexOf("показ")===0||c.indexOf("открыт")===0;});
     var list=[];
     for(i=h+1;i<rows.length;i++){
       var r=rows[i],cat=String(r[ci]==null?"":r[ci]).trim();
       if(!cat)continue;
       var a=out[cat];
+      if(si>=0&&/^(да|yes|1|true)/i.test(String(r[si]==null?"":r[si]).trim()))shown[cat]=true;
       if(!a){a=out[cat]={cat:cat,winners:[],votes:"",joke:/^(да|yes|1|true)/i.test(String(r[ji]==null?"":r[ji]).trim())};list.push(a);}
       var w=String(r[wi]==null?"":r[wi]).trim();
       if(w){a.winners.push(w);var v=String(r[vi]==null?"":r[vi]).trim();if(v)a.votes=a.votes||v;}
     }
+    list.forEach(function(a,k){a.shown=k===0||!!shown[a.cat];});   // первая награда видна всегда, остальные — когда в таблице стоит «да»
     return list;
   }
   function awIcon(c){c=c.toLowerCase();
@@ -638,8 +643,10 @@ if(typeof module!=="undefined")module.exports={parseCSV:parseCSV,parseSheetText:
     if(!awards.length){sec.hidden=true;return;}
     sec.hidden=false;
     var open=awardsOpen();
-    $("aw-hint").textContent=open?"Итоги голосования сезона":"Голосуем в Telegram-группе. Победителей объявим "+fmt(new Date(CFG.final[0],CFG.final[1],CFG.final[2]))+".";
+    var seen=awards.filter(function(a){return open||a.shown;}).length;
+    $("aw-hint").textContent=open?"Итоги голосования сезона":(seen<awards.length?"Открыто наград: "+seen+" из "+awards.length+". Следующие откроем по ходу сезона. ":"")+"Победителей объявим "+fmt(new Date(CFG.final[0],CFG.final[1],CFG.final[2]))+".";
     $("awards").innerHTML=awards.map(function(a){
+      if(!open&&!a.shown)return '<div class="aw hid" aria-label="Скрытая награда"><div class="ic">❓</div><b>Секретная награда</b><span>Откроем позже</span></div>';
       var line;
       if(open&&a.winners.length)line='<span class="who">'+a.winners.map(esc).join(", ")+'</span>'+(a.votes?'<span>'+esc(a.votes)+' '+plural(+a.votes||0,["голос","голоса","голосов"])+'</span>':"");
       else line='<span>'+(open?"Победитель не выбран":"Победитель скрыт до финала")+'</span>';
