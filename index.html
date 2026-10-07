@@ -164,6 +164,14 @@ button.tk{cursor:pointer}
 .cal i.fut{background:transparent;border:1.5px dashed var(--muted);opacity:.6}
 .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
 .legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.awards{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.aw{border:1.5px solid var(--line);border-radius:12px;padding:12px 12px 10px;min-height:92px}
+.aw.joke{border-style:dashed}
+.aw .ic{font-size:22px;line-height:1}
+.aw b{display:block;font:700 13px/1.25 var(--f-display);margin:6px 0 4px}
+.aw span{display:block;font-size:12.5px;color:var(--muted);overflow-wrap:anywhere}
+.aw .who{color:var(--zone-soft);font-weight:700;font-size:14px}
+.badges{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 2px}
 .note{margin-top:28px;font-size:13px;color:var(--muted);max-width:68ch}
 @media (prefers-reduced-motion:reduce){.bar,.bar .fill{transition:none}.block{animation:none}}
 </style>
@@ -212,6 +220,11 @@ button.tk{cursor:pointer}
     <div class="scale" id="scale" aria-label="Дни сезона"></div>
   </section>
 
+  <section class="sec" aria-labelledby="h-aw" id="aw-sec" hidden>
+    <div class="sec-head"><h2 id="h-aw">Награды сезона</h2><p class="hint" id="aw-hint"></p></div>
+    <div class="awards" id="awards"></div>
+  </section>
+
   <section class="sec" aria-labelledby="h-rank">
     <div class="sec-head"><h2 id="h-rank">Рейтинг</h2><p class="hint">Нажмите на игрока, чтобы открыть карточку</p></div>
     <div class="grid2">
@@ -227,6 +240,7 @@ var CFG={
   fileId:"1WFhzvu5o2Y8TjZ5CnbYUhNR0qZUC34a7YN4rLaK9Wao",
   tab:"2026-2027",
   csvUrl:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQJ2qbt8zpTSnUOJe064z2epY8eKDGXijYqEj8AyEtMjQkH2JOek4jvUtM7qxbMO42RMDdQUdcTNvJQ/pub?gid=1530279689&single=true&output=csv",         // ссылка «Опубликовать в интернете → CSV» для вкладки; нужна на GitHub Pages
+  awardsCsv:"https://docs.google.com/spreadsheets/d/e/2PACX-1vQJ2qbt8zpTSnUOJe064z2epY8eKDGXijYqEj8AyEtMjQkH2JOek4jvUtM7qxbMO42RMDdQUdcTNvJQ/pub?gid=753387834&single=true&output=csv", // вкладка «Награды»
   visit:10,          // баллов за приход
   streak:[[3,10],[6,15],[8,20],[10,30]], // [игр подряд, бонус]; бонусы суммируются по ходу серии
   start:[2026,8,29], // первый вторник сезона
@@ -576,6 +590,7 @@ if(typeof module!=="undefined")module.exports={parseCSV:parseCSV,parseSheetText:
     el.innerHTML=
       '<div class="eyebrow">Карточка игрока</div><h3>'+esc(p.name)+'</h3>'+
       '<div class="meta">'+status+'</div>'+
+      (function(){var w=awardsOf(p.name);return w.length?'<div class="badges">'+w.map(function(a){return '<span class="chip hot">'+awIcon(a.cat)+' '+esc(a.cat)+'</span>';}).join("")+'</div>':"";})()+
       '<div class="stats">'+
         '<div class="stat"><b>'+p.pts+'</b><span>'+plural(p.pts,PTS)+' засчитано</span></div>'+
         '<div class="stat"><b>'+p.visits+'</b><span>'+plural(p.visits,VIS)+' из '+model.games.length+'</span></div>'+
@@ -590,11 +605,58 @@ if(typeof module!=="undefined")module.exports={parseCSV:parseCSV,parseSheetText:
       '<div class="legend"><span><i style="background:var(--line)"></i>был(а)</span><span><i style="background:var(--zone)"></i>был(а), долг</span><span><i style="background:var(--faint)"></i>пропуск</span><span><i style="border:1.5px dashed var(--muted)"></i>впереди</span></div>';
   }
 
+  var awards=[];
+  function parseAwards(rows){
+    var h=-1,i,j,out={};
+    for(i=0;i<rows.length&&h<0;i++){if(rows[i].some(function(c){return /^категория/i.test(String(c).trim());}))h=i;}
+    if(h<0)return [];
+    var head=rows[h].map(function(c){return String(c).trim().toLowerCase();});
+    var ci=head.findIndex(function(c){return c.indexOf("категор")===0;}),
+        wi=head.findIndex(function(c){return c.indexOf("победител")===0;}),
+        vi=head.findIndex(function(c){return c.indexOf("голос")===0;}),
+        ji=head.findIndex(function(c){return c.indexOf("шуточ")===0;});
+    var list=[];
+    for(i=h+1;i<rows.length;i++){
+      var r=rows[i],cat=String(r[ci]==null?"":r[ci]).trim();
+      if(!cat)continue;
+      var a=out[cat];
+      if(!a){a=out[cat]={cat:cat,winners:[],votes:"",joke:/^(да|yes|1|true)/i.test(String(r[ji]==null?"":r[ji]).trim())};list.push(a);}
+      var w=String(r[wi]==null?"":r[wi]).trim();
+      if(w){a.winners.push(w);var v=String(r[vi]==null?"":r[vi]).trim();if(v)a.votes=a.votes||v;}
+    }
+    return list;
+  }
+  function awIcon(c){c=c.toLowerCase();
+    return /бомбард/.test(c)?"💥":/связующ/.test(c)?"🎯":/защит/.test(c)?"🛡":/подач/.test(c)?"🚀":/полезн/.test(c)?"⭐":/душ/.test(c)?"❤️":/аут/.test(c)?"🌌":/отговор/.test(c)?"🎭":/позже|опазд/.test(c)?"🐢":"🏅";}
+  function normName(n){return String(n).toLowerCase().replace(/ё/g,"е").replace(/\s+/g," ").trim();}
+  function awardsOpen(){
+    var f=new Date(CFG.final[0],CFG.final[1],CFG.final[2]);
+    return new Date()>=f||/[?&]awards=show\b/.test(location.search);
+  }
+  function renderAwards(){
+    var sec=$("aw-sec");
+    if(!awards.length){sec.hidden=true;return;}
+    sec.hidden=false;
+    var open=awardsOpen();
+    $("aw-hint").textContent=open?"Итоги голосования сезона":"Голосуем в Telegram-группе. Победителей объявим "+fmt(new Date(CFG.final[0],CFG.final[1],CFG.final[2]))+".";
+    $("awards").innerHTML=awards.map(function(a){
+      var line;
+      if(open&&a.winners.length)line='<span class="who">'+a.winners.map(esc).join(", ")+'</span>'+(a.votes?'<span>'+esc(a.votes)+' '+plural(+a.votes||0,["голос","голоса","голосов"])+'</span>':"");
+      else line='<span>'+(open?"Победитель не выбран":"Победитель скрыт до финала")+'</span>';
+      return '<div class="aw'+(a.joke?' joke':'')+'"><div class="ic">'+(open&&a.winners.length?awIcon(a.cat):"🔒")+'</div><b>'+esc(a.cat)+'</b>'+line+'</div>';
+    }).join("");
+  }
+  function awardsOf(name){
+    if(!awardsOpen())return [];
+    var n=normName(name);
+    return awards.filter(function(a){return a.winners.some(function(w){return normName(w)===n;});});
+  }
+
   function renderAll(){
     var list=ranking(model);
     var keep=selected&&model.players.filter(function(p){return p.name===selected.name;})[0];
     selected=keep||list[0]||null;
-    renderStatus();renderRules();renderPodium(list);renderSeason();renderBench();renderRace();renderRows(list);renderCard();
+    renderStatus();renderRules();renderPodium(list);renderSeason();renderBench();renderRace();renderRows(list);renderCard();renderAwards();
   }
   function setGrid(rows){model=build(parseGrid(rows));renderAll();}
 
@@ -727,11 +789,21 @@ if(typeof module!=="undefined")module.exports={parseCSV:parseCSV,parseSheetText:
       renderStatus();
     }
   }
-  $("refresh").addEventListener("click",function(){loadLive(true);});
+  async function loadAwards(){
+    if(!CFG.awardsCsv)return;
+    try{
+      var r=await fetch(CFG.awardsCsv+(CFG.awardsCsv.indexOf("?")<0?"?":"&")+"t="+Date.now(),{cache:"no-store"});
+      if(!r.ok)return;
+      awards=parseAwards(parseCSV(await r.text()));
+      renderAwards();renderCard();
+    }catch(_){}
+  }
+  $("refresh").addEventListener("click",function(){loadLive(true);loadAwards();});
 
   setGrid(SNAPSHOT);          // сразу показываем снимок, чтобы страница не была пустой
   status={kind:"loading"};renderStatus();
   loadLive(false);
+  loadAwards();
 })();
 </script>
 </html>
