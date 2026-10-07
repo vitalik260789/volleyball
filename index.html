@@ -323,11 +323,11 @@ function build(parsed){
   return {games:games,players:players};
 }
 
-// рейтинг: все, кто хоть раз приходил. Должники стоят в списке по своим баллам, но места
+// рейтинг: все, кто хоть раз приходил. Должники стоят в конце списка (по своим баллам), места
 // (и пьедестал) считаются только среди игроков без долга. Места плотные.
 function ranking(model){
   var list=model.players.filter(function(p){return p.visits>0;})
-    .sort(function(a,b){return b.pts-a.pts||b.visits-a.visits||a.name.localeCompare(b.name,"ru");});
+    .sort(function(a,b){return (a.bench?1:0)-(b.bench?1:0)||b.pts-a.pts||b.visits-a.visits||a.name.localeCompare(b.name,"ru");});
   var place=0,prev=null;
   list.forEach(function(p){
     if(p.bench){p.place=null;return;}
