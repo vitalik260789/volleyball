@@ -1,0 +1,728 @@
+<!doctype html>
+<html lang="ru">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex">
+<style>html,body{margin:0;min-height:100%}body{font-size:14px}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>Зал славы волейбола</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+/* Layout: a volleyball court — blue playing area, orange free zone, white court lines as dividers; rules, podium, bench, race, ranking stacked */
+:root{
+  --court:#1D4F91; --court-deep:#153B6E; --panel:#1A4683; --zone:#E8792B; --zone-soft:#F3A066;
+  --line:#F4F7FB; --muted:#C3D3EA; --faint:rgba(244,247,251,.14);
+  --gold:#F2C14E; --silver:#D3DCE7; --bronze:#D9935C;
+  --f-display:"Unbounded","Manrope",system-ui,sans-serif;
+  --f-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-num:"JetBrains Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+body{background:var(--zone);color:var(--line);font-family:var(--f-body);font-size:15px;line-height:1.5}
+.court{max-width:1000px;margin:0 auto;background:var(--court);padding-block:28px 40px;padding-inline:clamp(16px,4vw,40px);
+  border-left:3px solid var(--line);border-right:3px solid var(--line);min-height:100%}
+@media (max-width:640px){body{background:var(--court)}.court{border:0}}
+header{display:flex;flex-wrap:wrap;gap:12px 24px;align-items:flex-end;justify-content:space-between;padding-bottom:20px;border-bottom:3px solid var(--line)}
+.eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:700}
+h1{font-family:var(--f-display);font-weight:800;font-size:clamp(28px,6vw,46px);line-height:1.05;margin:4px 0 0;text-wrap:balance}
+.src{display:flex;flex-direction:column;align-items:flex-end;gap:6px;max-width:320px;min-width:0}
+.status{font-size:12px;font-weight:700;padding:4px 10px;border-radius:999px;border:1.5px solid var(--faint);color:var(--muted);text-align:right;overflow-wrap:anywhere}
+.status.live{background:var(--line);color:var(--court-deep);border-color:var(--line)}
+.status.snap{background:var(--zone);color:var(--court-deep);border-color:var(--zone)}
+.ghost{font:600 13px var(--f-body);color:var(--line);background:transparent;border:2px solid var(--faint);padding:5px 12px;border-radius:999px;cursor:pointer}
+.ghost:disabled{opacity:.55;cursor:default}
+button:focus-visible{outline:3px solid var(--zone);outline-offset:2px}
+h2{font-family:var(--f-display);font-weight:700;font-size:18px;letter-spacing:.02em;margin:0;text-wrap:balance}
+.sec{padding-block:28px;border-bottom:2px dashed var(--faint)}
+.sec:last-of-type{border-bottom:0}
+.sec-head{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:baseline;justify-content:space-between;margin-bottom:18px}
+.hint{color:var(--muted);font-size:13px;margin:0}
+
+/* rules */
+.rules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:2px solid var(--line);border-radius:4px}
+.rule{padding:16px 18px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.rule+.rule{border-left:2px solid var(--line)}
+@media (max-width:760px){.rules{grid-template-columns:minmax(0,1fr)}.rule+.rule{border-left:0;border-top:2px solid var(--line)}}
+.rule b.big{font:800 34px/1 var(--f-display);color:var(--zone)}
+.rule b.big small{font:700 14px var(--f-body);color:var(--line);margin-left:6px}
+.rule .t{font-weight:700}
+.rule p{margin:0;font-size:13px;color:var(--muted)}
+.rule.bn b.big{color:var(--gold)}
+.rulefoot{margin:12px 0 0;font-size:13px;color:var(--muted);max-width:75ch}
+
+/* podium */
+.podium{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:clamp(8px,2vw,18px);align-items:end;max-width:700px;margin:0 auto}
+.step{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;text-align:center}
+.step .names{display:flex;flex-direction:column;gap:2px;min-height:44px;justify-content:flex-end;width:100%}
+.step .nm{font-weight:700;font-size:clamp(12px,2.5vw,15px);line-height:1.2;overflow-wrap:anywhere}
+.step .nm.more{font-weight:600;color:var(--muted);font-size:12px}
+.step .ct{font:700 13px var(--f-num);color:var(--muted)}
+.block{width:100%;background:var(--m);color:var(--court-deep);border-radius:6px 6px 0 0;display:flex;align-items:flex-start;justify-content:center;padding-top:10px;font:800 clamp(26px,6vw,40px) var(--f-display);transform-origin:bottom;animation:rise .7s cubic-bezier(.2,.8,.2,1) both}
+.step.empty .block{opacity:.35}
+@keyframes rise{from{transform:scaleY(.35)}to{transform:scaleY(1)}}
+
+/* season strip */
+.strip{display:flex;flex-wrap:wrap;gap:8px}
+.gm{display:flex;flex-direction:column;align-items:center;gap:4px;width:64px;padding:8px 0;border-radius:6px;border:2px dashed var(--faint);color:var(--muted)}
+.gm .gd{font:700 12px var(--f-num)}
+.gm .gn{font:800 18px var(--f-display);color:var(--muted)}
+.gm .gl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;min-height:12px}
+.gm.played{border:2px solid var(--line);background:var(--line);color:var(--court-deep)}
+.gm.played .gn{color:var(--court-deep)}
+.gm.wait{border-style:solid}
+.gm.final{border-color:var(--zone);color:var(--zone-soft)}
+.gm.final.played{background:var(--zone);color:var(--court-deep);border-color:var(--zone)}
+.gm.final.played .gn{color:var(--court-deep)}
+
+/* bench */
+.bench{padding-bottom:0}
+.benchrow{display:flex;flex-wrap:wrap;gap:8px;padding-inline:6px}
+.bchip{font:600 14px var(--f-body);color:var(--line);background:var(--panel);border:2px solid var(--faint);border-bottom:0;border-radius:10px 10px 0 0;padding:8px 14px 10px;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:0;text-align:left;min-width:0}
+.bchip:hover{border-color:var(--zone)}
+.bchip small{font-size:11px;color:var(--muted);font-weight:600}
+.benchbar{height:12px;background:var(--zone);border-radius:6px;box-shadow:0 6px 0 -2px var(--court-deep)}
+.benchempty{padding:6px 8px 14px;color:var(--muted);font-size:14px}
+
+/* race */
+.race-wrap{position:relative}
+.race{position:relative;height:calc(var(--rows)*42px);min-height:42px}
+.bar{position:absolute;left:0;right:0;top:0;height:36px;display:flex;align-items:center;gap:10px;transition:transform .75s cubic-bezier(.4,.1,.2,1),opacity .5s}
+.bar .lbl{flex:0 0 clamp(92px,24vw,170px);font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+.bar .track{flex:1;min-width:0;height:100%;position:relative}
+.bar .fill{display:block;height:100%;background:var(--line);border-radius:0 4px 4px 0;transition:width .75s cubic-bezier(.4,.1,.2,1);min-width:4px}
+.bar.lead .fill{background:var(--zone)}
+.bar .val{position:absolute;top:50%;transform:translateY(-50%);font:700 13px var(--f-num);color:var(--court-deep);padding-left:8px;left:0}
+.month{position:absolute;right:0;bottom:4px;font:800 clamp(28px,7vw,54px) var(--f-display);color:var(--faint);pointer-events:none}
+.play{font:700 14px var(--f-body);background:var(--zone);color:var(--court-deep);border:0;border-radius:999px;padding:9px 18px;cursor:pointer}
+.play:disabled{opacity:.5;cursor:default}
+
+
+.tiers{display:flex;flex-wrap:wrap;gap:6px}
+.tier{display:inline-flex;align-items:baseline;gap:6px;border:1.5px solid var(--faint);border-radius:999px;padding:2px 10px;font-size:12px;font-weight:600;color:var(--muted)}
+.tier b{font:700 13px var(--f-num);color:var(--line)}
+.tier em{font:700 13px var(--f-num);font-style:normal;color:var(--gold)}
+.row.dim .n,.row.dim .num,.row.dim .rk{opacity:.6}
+.row.dim .mini{opacity:.7}
+.row.dim .n{font-style:italic}
+
+/* race day scale */
+.scale{display:flex;margin-top:14px;padding-top:2px}
+.tk{flex:1 1 0;min-width:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:0;background:none;border:0;color:var(--muted);font:600 11px var(--f-num);position:relative;cursor:default}
+button.tk{cursor:pointer}
+.tk::before{content:"";position:absolute;top:7px;left:0;right:0;height:3px;background:var(--faint)}
+.tk .dot{width:14px;height:14px;border-radius:50%;background:var(--court);border:3px solid var(--faint);position:relative;z-index:1;box-sizing:border-box}
+.tk.done::before{background:var(--line)}
+.tk.done .dot{background:var(--line);border-color:var(--line)}
+.tk.cur::before{background:linear-gradient(90deg,var(--line) 50%,var(--faint) 50%)}
+.tk.cur .dot{background:var(--zone);border-color:var(--zone);transform:scale(1.5)}
+.tk.cur .dy{color:var(--line)}
+.tk.fut{opacity:.6}
+.tk .dy{font:700 12px var(--f-num)}
+.tk .mo{font:700 10px var(--f-body);letter-spacing:.06em;text-transform:uppercase;min-height:12px}
+
+/* ranking */
+.grid2{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px}
+@media (max-width:800px){.grid2{grid-template-columns:minmax(0,1fr)}}
+.rows{display:flex;flex-direction:column;gap:4px}
+.row{display:grid;grid-template-columns:28px 38px minmax(0,1fr) auto;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;background:transparent;border:0;color:inherit;font:inherit;text-align:left;cursor:pointer;width:100%}
+.row:hover{background:var(--faint)}
+.row[aria-selected="true"]{background:var(--panel);box-shadow:inset 0 0 0 2px var(--zone)}
+.rk{font:700 15px var(--f-num);color:var(--muted);text-align:right}
+.mini{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font:700 13px var(--f-display);color:var(--court-deep);background:var(--line)}
+.who{min-width:0}
+.who .n{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta{display:flex;flex-wrap:wrap;gap:6px;margin-top:3px}
+.chip{font-size:11px;font-weight:700;padding:1px 8px;border-radius:999px;border:1.5px solid var(--faint);color:var(--muted);white-space:nowrap}
+.chip.hot{background:var(--zone);border-color:var(--zone);color:var(--court-deep)}
+.chip.bn{border-color:var(--zone);color:var(--zone-soft)}
+.num{font:700 18px var(--f-num);text-align:right}
+.num small{display:block;font:500 11px var(--f-body);color:var(--muted)}
+
+.card{background:var(--panel);border-radius:12px;padding:20px;border:2px solid var(--faint);align-self:start;position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px)}
+@media (max-width:800px){.card{position:static}}
+.card h3{font:700 20px var(--f-display);margin:2px 0 4px;overflow-wrap:anywhere}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}
+.stat b{display:block;font:700 22px var(--f-num)}
+.stat span{font-size:12px;color:var(--muted)}
+.calc{font-size:13px;color:var(--muted);margin:0 0 4px}
+.calc b{color:var(--line)}
+.cal{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.cal i{width:16px;height:16px;border-radius:3px;background:var(--faint)}
+.cal i.on{background:var(--line)}
+.cal i.debt{background:var(--zone)}
+.cal i.pre{background:transparent;border:1px dashed var(--faint)}
+.cal i.fut{background:transparent;border:1.5px dashed var(--muted);opacity:.6}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.note{margin-top:28px;font-size:13px;color:var(--muted);max-width:68ch}
+@media (prefers-reduced-motion:reduce){.bar,.bar .fill{transition:none}.block{animation:none}}
+</style>
+
+<div class="court">
+  <header>
+    <div>
+      <div class="eyebrow">Волейбол · каждый вторник · сезон 2026–27</div>
+      <h1>Зал славы</h1>
+    </div>
+    <div class="src">
+      <span class="status" id="status" role="status">Читаю таблицу…</span>
+      <button class="ghost" id="refresh" type="button">Обновить</button>
+    </div>
+  </header>
+
+  <section class="sec" aria-labelledby="h-rules">
+    <div class="sec-head"><h2 id="h-rules">Как начисляются баллы</h2><p class="hint" id="rules-hint"></p></div>
+    <div class="rules" id="rules"></div>
+    <p class="rulefoot" id="rulefoot"></p>
+  </section>
+
+  <section class="sec" aria-labelledby="h-pod">
+    <div class="sec-head"><h2 id="h-pod">Пьедестал</h2><p class="hint" id="pod-hint"></p></div>
+    <div class="podium" id="podium"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-season">
+    <div class="sec-head"><h2 id="h-season">Сезон до финала</h2><p class="hint" id="season-hint"></p></div>
+    <div class="strip" id="strip"></div>
+  </section>
+
+  <section class="sec bench" aria-labelledby="h-bench">
+    <div class="sec-head"><h2 id="h-bench">Скамья штрафников</h2><p class="hint">Пришёл, но не сдал. Баллы сохраняются, пьедестал закрыт.</p></div>
+    <div class="benchrow" id="benchrow"></div>
+    <div class="benchbar"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-race">
+    <div class="sec-head">
+      <h2 id="h-race">Гонка по вторникам</h2>
+      <button class="play" id="play" type="button">▶ Запустить гонку</button>
+    </div>
+    <p class="hint" id="race-hint" style="margin:-8px 0 14px"></p>
+    <div class="race-wrap"><div class="race" id="race"></div><div class="month" id="month"></div></div>
+    <div class="scale" id="scale" aria-label="Дни сезона"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-rank">
+    <div class="sec-head"><h2 id="h-rank">Рейтинг</h2><p class="hint">Нажмите на игрока, чтобы открыть карточку</p></div>
+    <div class="grid2">
+      <div class="rows" id="rows" role="listbox" aria-label="Рейтинг игроков"></div>
+      <aside class="card" id="card" aria-live="polite"></aside>
+    </div>
+  </section>
+
+  <p class="note">Как читается таблица: любое число в клетке значит «пришёл», слово «долг» значит «пришёл, но должен», пустая клетка или прочерк значит пропуск.</p>
+</div>
+<script>
+var CFG={
+  fileId:"1WFhzvu5o2Y8TjZ5CnbYUhNR0qZUC34a7YN4rLaK9Wao",
+  tab:"2026-2027",
+  csvUrl:"",         // ссылка «Опубликовать в интернете → CSV» для вкладки; нужна на GitHub Pages
+  visit:10,          // баллов за приход
+  streak:[[3,10],[6,15],[8,20],[10,30]], // [игр подряд, бонус]; бонусы суммируются по ходу серии
+  start:[2026,8,29], // первый вторник сезона
+  final:[2026,11,15] // последняя игра, итоги
+};
+
+function mkDate(y,m,d){
+  var dt=new Date(y,m-1,d);
+  return (dt.getFullYear()===y&&dt.getMonth()===m-1&&dt.getDate()===d)?dt:null;
+}
+function parseDate(s){
+  if(s instanceof Date)return isNaN(s.getTime())?null:new Date(s.getFullYear(),s.getMonth(),s.getDate());
+  var t=String(s==null?"":s).trim(), m;
+  if((m=/^(\d{1,2})\.(\d{1,2})\.(\d{4})\.?$/.exec(t)))return mkDate(+m[3],+m[2],+m[1]);
+  if((m=/^(\d{1,2})\.(\d{1,2})\.(\d{2})$/.exec(t)))return mkDate(2000+(+m[3]),+m[2],+m[1]);
+  if((m=/^(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})\.?$/.exec(t)))return mkDate(+m[1],+m[2],+m[3]);
+  if((m=/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(t)))return mkDate(+m[3],+m[2],+m[1]);
+  return null;
+}
+
+// 0 — нет отметки, 1 — любое число (был), 2 — слово «долг» (был, но должен)
+function cellKind(v){
+  var t=String(v==null?"":v).trim().toLowerCase();
+  if(!t)return 0;
+  if(t.indexOf("долг")>=0)return 2;
+  if(/\d/.test(t))return 1;
+  return 0;
+}
+
+function parseGrid(rows){
+  var head=rows[0]||[], cols=[], people=[], i, j;
+  for(j=1;j<head.length;j++){var d=parseDate(head[j]);if(d)cols.push({j:j,d:d});}
+  for(i=1;i<rows.length;i++){
+    var r=rows[i]||[], name=String(r[0]==null?"":r[0]).trim();
+    if(!name)continue;
+    if(/^итог/i.test(name))break;
+    people.push({name:name,raw:cols.map(function(c){return cellKind(r[c.j]);})});
+  }
+  var keep=[];
+  cols.forEach(function(c,k){if(people.some(function(p){return p.raw[k]>0;}))keep.push(k);});
+  return {
+    dates:cols.length,
+    games:keep.map(function(k){return {d:cols[k].d};}),
+    people:people.map(function(p){return {name:p.name,marks:keep.map(function(k){return p.raw[k];})};})
+  };
+}
+
+function initials(name){
+  var w=name.replace(/\(.*?\)/g,"").replace(/\./g," ").trim().split(/\s+/).filter(Boolean);
+  return w.map(function(x){return x[0];}).join("").slice(0,2).toUpperCase();
+}
+
+function build(parsed){
+  var ladder={};
+  CFG.streak.forEach(function(r){ladder[r[0]]=r[1];});
+  var players=parsed.people.map(function(p){
+    var streak=0,best=0,visits=0,debts=0,bonuses=0,first=-1,cum=[];
+    var visitPts=0,bonusPts=0,held=0,debtGames=[];
+    p.marks.forEach(function(m,k){
+      if(m){
+        if(first<0)first=k;
+        visits++;streak++;best=Math.max(best,streak);
+        var bonus=ladder[streak]||0;
+        if(m===2){            // долг: баллы только за эту игру ждут оплаты
+          debts++;debtGames.push(k);held+=CFG.visit+bonus;
+        }else{
+          visitPts+=CFG.visit;bonusPts+=bonus;if(bonus)bonuses++;
+        }
+      }else streak=0;
+      cum.push(visitPts+bonusPts);
+    });
+    var span=first<0?0:parsed.games.length-first;
+    return {name:p.name,ini:initials(p.name),marks:p.marks,cum:cum,visits:visits,pts:visitPts+bonusPts,
+      visitPts:visitPts,bonusPts:bonusPts,held:held,debtGames:debtGames,bonuses:bonuses,
+      best:best,cur:streak,debts:debts,bench:debts>0,first:first,rate:span?Math.round(visits/span*100):0};
+  });
+  var games=parsed.games.map(function(g,k){
+    return {d:g.d,count:players.filter(function(pl){return pl.marks[k]>0;}).length};
+  });
+  return {games:games,players:players};
+}
+
+// рейтинг: все, кто хоть раз приходил. Должники стоят в списке по своим баллам, но места
+// (и пьедестал) считаются только среди игроков без долга. Места плотные.
+function ranking(model){
+  var list=model.players.filter(function(p){return p.visits>0;})
+    .sort(function(a,b){return b.pts-a.pts||b.visits-a.visits||a.name.localeCompare(b.name,"ru");});
+  var place=0,prev=null;
+  list.forEach(function(p){
+    if(p.bench){p.place=null;return;}
+    var key=p.pts+"|"+p.visits;
+    if(key!==prev){place++;prev=key;}
+    p.place=place;
+  });
+  return list;
+}
+
+// ближайший бонус серии: [сколько игр подряд осталось, сколько баллов] или null
+function nextTier(cur){
+  for(var i=0;i<CFG.streak.length;i++){if(CFG.streak[i][0]>cur)return {need:CFG.streak[i][0]-cur,at:CFG.streak[i][0],pts:CFG.streak[i][1]};}
+  return null;
+}
+
+// Разбор текстового вида листа, который отдаёт Google Drive (markdown-таблица в разделе «Sheet Name»)
+function parseSheetText(text,tab){
+  var parts=String(text).split(/^### Sheet Name:[ \t]*/m), sec=null, i;
+  for(i=1;i<parts.length;i++){
+    var nl=parts[i].indexOf("\n");
+    if(parts[i].slice(0,nl<0?undefined:nl).trim()===tab){sec=parts[i];break;}
+  }
+  if(sec===null)return null;
+  var cut=sec.indexOf("### Table Columns");
+  if(cut>=0)sec=sec.slice(0,cut);
+  var grid=[];
+  sec.split("\n").forEach(function(l){
+    if(!/^\s*\|/.test(l))return;
+    var cells=l.trim().replace(/^\|/,"").replace(/\|$/,"").split("|").map(function(c){return c.trim().replace(/\\(.)/g,"$1");});
+    if(cells.every(function(c){return /^:?-{3,}:?$/.test(c);}))return;   // разделитель markdown
+    grid.push(cells);
+  });
+  var h=-1;
+  for(i=0;i<grid.length&&h<0;i++){if(grid[i].some(function(c){return parseDate(c)!==null;}))h=i;}
+  return h<0?[]:grid.slice(h);
+}
+
+// Разбор CSV (кавычки, запятые и переводы строк внутри ячеек)
+function parseCSV(text){
+  var rows=[],row=[],cell="",q=false,i=0,c;
+  text=String(text).replace(/^\uFEFF/,"");
+  for(;i<text.length;i++){
+    c=text[i];
+    if(q){
+      if(c==='"'){if(text[i+1]==='"'){cell+='"';i++;}else q=false;}
+      else cell+=c;
+    }else if(c==='"')q=true;
+    else if(c===","){row.push(cell);cell="";}
+    else if(c==="\n"||c==="\r"){
+      if(c==="\r"&&text[i+1]==="\n")i++;
+      row.push(cell);rows.push(row);row=[];cell="";
+    }else cell+=c;
+  }
+  if(cell!==""||row.length){row.push(cell);rows.push(row);}
+  return rows;
+}
+
+if(typeof module!=="undefined")module.exports={parseCSV:parseCSV,parseSheetText:parseSheetText,CFG:CFG,parseDate:parseDate,cellKind:cellKind,parseGrid:parseGrid,build:build,ranking:ranking,nextTier:nextTier};
+
+(function(){
+  var SNAPSHOT=[["", "29.09.2026", "06.10.2026", "13.10.2026", "20.10.2026", "27.10.2026"], ["Бабич А. (он)", "1600", "1500", "", "", ""], ["Бабич А. (она)", "1600", "1500", "", "", ""], ["Влада", "", "1500", "", "", ""], ["Голуб И.", "", "1500", "", "", ""], ["Гудков А.", "1600", "1500", "", "", ""], ["Мацкевич А.", "", "", "", "", ""], ["Печи Л.", "1600", "1500", "", "", ""], ["Синеглазов Д.", "", "", "", "", ""], ["Ткачук К.", "1600", "1500", "", "", ""], ["Глеб", "долг", "долг", "", "", ""], ["Яша", "1600", "1500", "", "", ""], ["Решетина Н.", "", "", "", "", ""], ["Снет П.", "1600", "", "", "", ""], ["Южаков А.", "1600", "", "", "", ""], ["Южаковa Д.", "", "1500", "", "", ""], ["Шандор", "", "", "", "", ""], ["Окоронко Н.", "", "", "", "", ""], ["Яскуловский В.", "1600", "1500", "", "", ""], ["Итог", "14 400", "15 000", "0", "0", "0"], ["", "", "", "", "", ""], ["", "", "", "", "", ""], ["", "", "", "", "", ""]];
+  var SNAPSHOT_LABEL="7 октября 2026";
+  var XLSX_MIME="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+  var MONTHS_G=["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
+  var PTS=["балл","балла","баллов"], VIS=["посещение","посещения","посещений"], GAMES=["игра","игры","игр"], DEBT=["долг","долга","долгов"];
+  var TOP=8, ROW=42;
+  function $(id){return document.getElementById(id);}
+  function plural(n,f){var a=n%10,b=n%100;return f[(a===1&&b!==11)?0:(a>=2&&a<=4&&(b<10||b>=20))?1:2];}
+  function fmt(d){return d.getDate()+" "+MONTHS_G[d.getMonth()];}
+  function fmtShort(d){return String(d.getDate()).padStart(2,"0")+"."+String(d.getMonth()+1).padStart(2,"0");}
+  function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function sleep(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+  var final=new Date(CFG.final[0],CFG.final[1],CFG.final[2]);
+  var planned=[];
+  for(var d=new Date(CFG.start[0],CFG.start[1],CFG.start[2]);d<=final;d=new Date(d.getFullYear(),d.getMonth(),d.getDate()+7))planned.push(d);
+  var maxBonus=CFG.streak.reduce(function(a,r){return a+(r[0]<=planned.length?r[1]:0);},0);
+  var maxPts=planned.length*CFG.visit+maxBonus;
+  var MONTHS_S=["янв","фев","мар","апр","май","июн","июл","авг","сен","окт","ноя","дек"];
+
+  var model=null, selected=null, timer=null, status={kind:"loading"}, bars=[], barPlayers=[];
+
+  /* ---------- rules ---------- */
+  function renderRules(){
+    var tiers=CFG.streak.map(function(r){return '<span class="tier"><b>'+r[0]+'</b> подряд<em>+'+r[1]+'</em></span>';}).join("");
+    $("rules").innerHTML=
+      '<div class="rule"><b class="big">+'+CFG.visit+'<small>'+PTS[2]+'</small></b><div class="t">За каждый приход</div></div>'+
+      '<div class="rule bn"><b class="big">до +'+maxBonus+'<small>'+PTS[2]+'</small></b><div class="t">За серию без пропусков</div>'+
+        '<div class="tiers">'+tiers+'</div><p>Бонусы копятся по ходу серии: на 10-й игре подряд игрок уже получил все четыре. Пропуск обнуляет серию.</p></div>'+
+      '<div class="rule"><b class="big">Долг</b><p>Игра засчитана, серия не рвётся. Баллы только за игру с долгом ждут оплаты, остальные остаются у игрока. Пока долг не закрыт, игрок на скамье штрафников и не попадает на пьедестал. Когда в клетке появится сумма, баллы возвращаются.</p></div>';
+    $("rules-hint").textContent="Максимум за сезон: "+maxPts+" "+plural(maxPts,PTS);
+    $("rulefoot").textContent="Итоги подведём "+fmt(final)+" после последней игры. Все "+planned.length+" "+plural(planned.length,GAMES)+" сезона: "+fmtShort(planned[0])+" — "+fmtShort(final)+". Идеальная явка приносит "+planned.length*CFG.visit+" + "+maxBonus+" = "+maxPts+".";
+  }
+
+  /* ---------- status ---------- */
+  function renderStatus(){
+    var el=$("status"), b=$("refresh");
+    el.className="status";
+    b.disabled=status.kind==="loading";
+    b.textContent=status.kind==="loading"?"Обновляю…":"Обновить";
+    if(status.kind==="loading"){el.textContent="Читаю таблицу…";}
+    else if(status.kind==="live"){
+      el.className="status live";var t=status.at;
+      el.textContent="Таблица прочитана в "+String(t.getHours()).padStart(2,"0")+":"+String(t.getMinutes()).padStart(2,"0")+
+        " · игр сыграно: "+status.games+(status.changed===false?" · без изменений":"");
+    }else{el.className="status snap";el.textContent="Показан снимок от "+SNAPSHOT_LABEL+". "+status.note;}
+  }
+
+  /* ---------- podium ---------- */
+  function renderPodium(all){
+    var list=all.filter(function(p){return !p.bench;});
+    var el=$("podium"), heights={1:150,2:112,3:86}, colors={1:"var(--gold)",2:"var(--silver)",3:"var(--bronze)"};
+    el.innerHTML=[2,1,3].map(function(k){
+      var g=list.filter(function(p){return p.place===k;});
+      var names=g.slice(0,4).map(function(p){return '<div class="nm">'+esc(p.name)+'</div>';}).join("");
+      if(g.length>4)names+='<div class="nm more">и ещё '+(g.length-4)+'</div>';
+      var ct=g.length?g[0].pts+" "+plural(g[0].pts,PTS):"";
+      return '<div class="step'+(g.length?"":" empty")+'" style="--m:'+colors[k]+'"><div class="names">'+(names||'<div class="nm more">пока никого</div>')+'</div><div class="ct">'+ct+'</div><div class="block" style="height:'+heights[k]+'px">'+k+'</div></div>';
+    }).join("");
+    $("pod-hint").textContent=model.games.length?
+      "Сыграно "+model.games.length+" "+plural(model.games.length,GAMES)+" из "+planned.length:
+      "В таблице пока нет ни одной отмеченной игры";
+  }
+
+  /* ---------- season strip ---------- */
+  function renderSeason(){
+    var today=new Date();today=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+    var byTime={};model.games.forEach(function(g){byTime[g.d.getTime()]=g;});
+    var all=planned.slice();
+    model.games.forEach(function(g){if(!all.some(function(p){return p.getTime()===g.d.getTime();}))all.push(g.d);});
+    all.sort(function(a,b){return a-b;});
+    $("strip").innerHTML=all.map(function(dt){
+      var g=byTime[dt.getTime()], isFinal=dt.getTime()===final.getTime();
+      var cls="gm"+(g?" played":(dt<today?" wait":""))+(isFinal?" final":"");
+      var n=g?g.count:(dt<today?"?":"·");
+      var label=isFinal?"финал":(g?"пришли":(dt<today?"нет отметок":""));
+      return '<div class="'+cls+'" title="'+fmt(dt)+'"><span class="gd">'+fmtShort(dt)+'</span><span class="gn">'+n+'</span><span class="gl">'+label+'</span></div>';
+    }).join("");
+    var left=planned.filter(function(p){return p>=today;}).length;
+    $("season-hint").textContent=today>final?"Сезон завершён":
+      "Итоги "+fmt(final)+", осталось "+left+" "+plural(left,GAMES);
+  }
+
+  /* ---------- bench ---------- */
+  function renderBench(){
+    var bench=model.players.filter(function(p){return p.bench;}).sort(function(a,b){return b.debts-a.debts||a.name.localeCompare(b.name,"ru");});
+    $("benchrow").innerHTML=bench.length?bench.map(function(p){
+      var days=p.debtGames.map(function(k){return fmtShort(model.games[k].d);}).join(", ");
+      return '<button class="bchip" type="button" data-n="'+esc(p.name)+'">'+esc(p.name)+'<small>'+p.debts+' '+plural(p.debts,DEBT)+': '+days+'</small><small>ждут оплаты '+p.held+' '+plural(p.held,PTS)+'</small></button>';
+    }).join(""):'<div class="benchempty">Скамья пуста. Все в расчёте.</div>';
+  }
+
+  /* ---------- race ---------- */
+  function drawFrame(k){
+    var vals=barPlayers.map(function(p){return p.cum[k];});
+    var order=barPlayers.map(function(_,i){return i;}).sort(function(a,b){return vals[b]-vals[a]||barPlayers[a].name.localeCompare(barPlayers[b].name,"ru");});
+    var max=Math.max(1,vals[order[0]])*1.08;
+    order.forEach(function(pi,rank){
+      var b=bars[pi],v=vals[pi];
+      b.style.transform="translateY("+Math.min(rank,TOP)*ROW+"px)";
+      b.style.opacity=rank<TOP?1:0;
+      b.classList.toggle("lead",rank===0&&v>0);
+      var w=v/max*100;
+      b.querySelector(".fill").style.width=w+"%";
+      var val=b.querySelector(".val");val.textContent=v;
+      val.style.left=w>14?"calc("+w+"% - 40px)":w+"%";
+      val.style.color=w>14?"var(--court-deep)":"var(--line)";
+    });
+    $("month").textContent=fmtShort(model.games[k].d);
+    markScale(k);
+  }
+  function buildScale(){
+    var all=planned.slice(), held={};
+    model.games.forEach(function(g,k){held[g.d.getTime()]=k;if(!all.some(function(p){return p.getTime()===g.d.getTime();}))all.push(g.d);});
+    all.sort(function(a,b){return a-b;});
+    var lastMonth=-1;
+    $("scale").innerHTML=all.map(function(dt){
+      var k=held[dt.getTime()], mo=dt.getMonth()!==lastMonth?MONTHS_S[dt.getMonth()]:"";
+      lastMonth=dt.getMonth();
+      var day=String(dt.getDate()).padStart(2,"0");
+      var inner='<span class="dot"></span><span class="dy">'+day+'</span><span class="mo">'+mo+'</span>';
+      return k===undefined?
+        '<div class="tk fut" title="'+fmt(dt)+'">'+inner+'</div>':
+        '<button class="tk" type="button" data-k="'+k+'" title="'+fmt(dt)+'">'+inner+'</button>';
+    }).join("");
+  }
+  function markScale(k){
+    var tks=$("scale").querySelectorAll(".tk[data-k]");
+    for(var i=0;i<tks.length;i++){
+      var j=+tks[i].getAttribute("data-k");
+      tks[i].classList.toggle("done",j<=k);
+      tks[i].classList.toggle("cur",j===k);
+    }
+  }
+  function renderRace(){
+    if(timer){clearInterval(timer);timer=null;}
+    var race=$("race"), btn=$("play"), n=model.games.length;
+    barPlayers=model.players.filter(function(p){return p.visits>0;});
+    race.innerHTML="";bars=[];$("month").textContent="";
+    buildScale();
+    btn.textContent="▶ Запустить гонку";
+    if(!barPlayers.length){
+      btn.disabled=true;
+      $("race-hint").textContent="Гонка появится после первой отмеченной игры.";
+      return;
+    }
+    race.style.setProperty("--rows",Math.min(TOP,barPlayers.length));
+    bars=barPlayers.map(function(p){
+      var b=document.createElement("div");b.className="bar";
+      b.innerHTML='<span class="lbl">'+esc(p.name)+'</span><span class="track"><span class="fill"></span><span class="val"></span></span>';
+      race.appendChild(b);return b;
+    });
+    drawFrame(n-1);
+    btn.disabled=n<2;
+    $("race-hint").textContent=n<2?
+      "Пока сыграна одна игра, столбики показывают её итог. Анимация включится после второй.":
+      "Баллы игроков после каждого вторника, первые "+TOP+".";
+  }
+  function playRace(){
+    if(timer||model.games.length<2)return;
+    var f=0,btn=$("play");btn.disabled=true;btn.textContent="Идёт гонка…";drawFrame(0);
+    timer=setInterval(function(){
+      f++;
+      if(f>=model.games.length){clearInterval(timer);timer=null;btn.disabled=false;btn.textContent="↻ Ещё раз";return;}
+      drawFrame(f);
+    },1100);
+  }
+
+  /* ---------- ranking + card ---------- */
+  function medal(place){return place===1?"var(--gold)":place===2?"var(--silver)":place===3?"var(--bronze)":"var(--line)";}
+  function renderRows(list){
+    var el=$("rows");
+    el.innerHTML=list.length?list.map(function(p){
+      var chips=[];
+      if(p.bench)chips.push('<span class="chip bn">Долг ×'+p.debts+'</span>');
+      if(p.cur>=2)chips.push('<span class="chip'+(p.cur>=CFG.streak[0][0]?" hot":"")+'">Серия '+p.cur+'</span>');
+      if(p.bonuses)chips.push('<span class="chip">Бонусы серий ×'+p.bonuses+'</span>');
+      return '<button class="row'+(p.bench?" dim":"")+'" type="button" role="option" data-n="'+esc(p.name)+'" aria-selected="'+(p===selected)+'">'+
+        '<span class="rk">'+(p.bench?"—":p.place)+'</span><span class="mini" style="background:'+(p.bench?"var(--muted)":medal(p.place))+'">'+esc(p.ini)+'</span>'+
+        '<span class="who"><div class="n">'+esc(p.name)+'</div><div class="meta">'+chips.join("")+'</div></span>'+
+        '<span class="num">'+p.pts+'<small>'+(p.held?"ждут "+p.held:p.visits+" "+plural(p.visits,VIS))+'</small></span></button>';
+    }).join(""):'<div class="hint" style="padding:8px 10px">Пока никого: в таблице нет отметок о приходе.</div>';
+  }
+  function renderCard(){
+    var el=$("card"), p=selected;
+    if(!p){el.innerHTML='<div class="eyebrow">Карточка игрока</div><p class="hint">Выберите игрока в рейтинге.</p>';return;}
+    var today=new Date();today=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+    var cells=[];
+    model.games.forEach(function(g,k){
+      var m=p.marks[k], cls=k<p.first||p.first<0?"pre":m===2?"on debt":m?"on":"";
+      var txt=cls==="pre"?"ещё не играл(а)":m===2?"был(а), долг":m?"был(а)":"пропуск";
+      cells.push('<i class="'+cls+'" title="'+fmt(g.d)+' — '+txt+'"></i>');
+    });
+    var heldTimes=model.games.map(function(g){return g.d.getTime();});
+    planned.forEach(function(dt){if(dt>=today&&heldTimes.indexOf(dt.getTime())<0)cells.push('<i class="fut" title="'+fmt(dt)+' — впереди"></i>');});
+    var nt=nextTier(p.cur);
+    var status=p.bench?'<span class="chip bn">Скамья штрафников</span>':(p.place?'<span class="chip">Место '+p.place+'</span>':"");
+    var days=p.debtGames.map(function(k){return fmtShort(model.games[k].d);}).join(", ");
+    el.innerHTML=
+      '<div class="eyebrow">Карточка игрока</div><h3>'+esc(p.name)+'</h3>'+
+      '<div class="meta">'+status+'</div>'+
+      '<div class="stats">'+
+        '<div class="stat"><b>'+p.pts+'</b><span>'+plural(p.pts,PTS)+' засчитано</span></div>'+
+        '<div class="stat"><b>'+p.visits+'</b><span>'+plural(p.visits,VIS)+' из '+model.games.length+'</span></div>'+
+        '<div class="stat"><b>'+p.cur+' / '+p.best+'</b><span>серия сейчас / лучшая</span></div>'+
+        '<div class="stat"><b>'+p.rate+'%</b><span>явка с первой игры</span></div>'+
+      '</div>'+
+      '<p class="calc">Засчитано: приходы <b>'+p.visitPts+'</b>, бонусы серий <b>'+p.bonusPts+'</b>.</p>'+
+      (p.bench?'<p class="calc">Долг за игры: <b>'+days+'</b>. Ждут оплаты <b>'+p.held+' '+plural(p.held,PTS)+'</b>, вернутся, когда в клетке появится сумма.</p>':'')+
+      '<p class="calc">'+(nt?'Следующий бонус: <b>+'+nt.pts+'</b> на '+nt.at+'-й игре подряд, осталось <b>'+nt.need+' '+plural(nt.need,GAMES)+'</b>.':'Все бонусы серии уже получены.')+'</p>'+
+      '<div style="margin-top:16px;font-size:13px;font-weight:700">Каждая клетка — игра</div>'+
+      '<div class="cal">'+cells.join("")+'</div>'+
+      '<div class="legend"><span><i style="background:var(--line)"></i>был(а)</span><span><i style="background:var(--zone)"></i>был(а), долг</span><span><i style="background:var(--faint)"></i>пропуск</span><span><i style="border:1.5px dashed var(--muted)"></i>впереди</span></div>';
+  }
+
+  function renderAll(){
+    var list=ranking(model);
+    var keep=selected&&model.players.filter(function(p){return p.name===selected.name;})[0];
+    selected=keep||list[0]||null;
+    renderStatus();renderRules();renderPodium(list);renderSeason();renderBench();renderRace();renderRows(list);renderCard();
+  }
+  function setGrid(rows){model=build(parseGrid(rows));renderAll();}
+
+  function pick(name){
+    selected=model.players.filter(function(p){return p.name===name;})[0]||selected;
+    renderRows(ranking(model));renderCard();
+  }
+  document.addEventListener("click",function(e){
+    var t=e.target.closest&&e.target.closest("[data-n]");
+    if(t)pick(t.getAttribute("data-n"));
+  });
+  $("play").addEventListener("click",playRace);
+  $("scale").addEventListener("click",function(e){
+    var t=e.target.closest&&e.target.closest("[data-k]");
+    if(t&&!timer&&barPlayers.length)drawFrame(+t.getAttribute("data-k"));
+  });
+
+  /* ---------- live read from Google Drive ---------- */
+  var AUTH_CODES={not_in_manifest:1,consent_required:1,needs_reauth:1,server_not_connected:1,selection_required:1,server_not_found:1,blocked_by_policy:1,approval_required:1,not_granted:1,capability_disabled:1,capability_removed:1};
+  var lastSig=null;
+
+  function extractField(res,key){
+    var p=res&&res.payload;
+    if(p&&typeof p==="object"&&typeof p[key]==="string")return p[key];
+    var blocks=(res&&res.content)||[];
+    for(var i=0;i<blocks.length;i++){
+      var b=blocks[i];
+      if(b&&b.type==="text"&&b.text){try{var j=JSON.parse(b.text);if(j&&typeof j[key]==="string")return j[key];}catch(_){}}
+    }
+    if(typeof p==="string"&&p.length>200&&p.charAt(0)!=="{")return p.trim();
+    return null;
+  }
+  async function call(mcp,tool,input){
+    for(var attempt=0;attempt<2;attempt++){
+      try{return await mcp.callTool("Google Drive",tool,input,{cache:false});}
+      catch(e){
+        if(e&&e.retryable&&attempt===0){await sleep(Math.min(e.retryAfterMs||1500,5000));continue;}
+        throw e;
+      }
+    }
+  }
+  // 1) текстовый вид листа  2) запасной путь: выгрузка в xlsx
+  async function fetchRows(mcp){
+    var lastErr=null;
+    try{
+      var r=await call(mcp,"read_file_content",{fileId:CFG.fileId});
+      var txt=extractField(r,"fileContent");
+      if(txt){
+        var g=parseSheetText(txt,CFG.tab);
+        if(g===null)lastErr={code:"no_tab"};
+        else if(g.length)return {rows:g,via:"text"};
+        else lastErr={code:"no_dates",sample:""};
+      }else lastErr={code:"no_data"};
+    }catch(e){
+      if(e&&AUTH_CODES[e.code])throw e;
+      lastErr=e;
+    }
+    if(typeof XLSX==="undefined")throw lastErr||{code:"no_lib"};
+    var r2=await call(mcp,"download_file_content",{fileId:CFG.fileId,exportMimeType:XLSX_MIME});
+    var b64=extractField(r2,"content");
+    if(!b64)throw lastErr||{code:"no_data"};
+    var wb=XLSX.read(b64,{type:"base64"});
+    var ws=wb.Sheets[CFG.tab];
+    if(!ws)throw {code:"no_tab"};
+    var rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:false,defval:""});
+    var ref=XLSX.utils.decode_range(ws["!ref"]||"A1:A1");
+    // шапку читаем из ячеек: даты могут лежать как числа, а не как текст
+    var head=[];
+    for(var c=ref.s.c;c<=ref.e.c;c++){
+      var cell=ws[XLSX.utils.encode_cell({r:ref.s.r,c:c})], v="";
+      if(cell){
+        if(cell.t==="n"&&typeof cell.v==="number"&&cell.v>30000&&cell.v<80000){
+          var dc=XLSX.SSF.parse_date_code(cell.v);
+          if(dc)v=new Date(dc.y,dc.m-1,dc.d);
+        }
+        if(v==="")v=cell.w!=null?cell.w:String(cell.v==null?"":cell.v);
+      }
+      head.push(v);
+    }
+    if(rows.length)rows[0]=head;
+    return {rows:rows,via:"xlsx"};
+  }
+  async function fetchCsv(){
+    var r=await fetch(CFG.csvUrl+(CFG.csvUrl.indexOf("?")<0?"?":"&")+"t="+Date.now(),{cache:"no-store"});
+    if(!r.ok)throw {code:"csv_http",message:"HTTP "+r.status};
+    return parseCSV(await r.text());
+  }
+  function explain(e){
+    var c=e&&e.code;
+    if(c==="no_lib")return "Не загрузился модуль чтения Excel.";
+    if(c==="no_claude")return "Живая таблица к странице не подключена.";
+    if(c==="csv_http")return "Таблица по ссылке не открылась ("+e.message+").";
+    if(!c&&e instanceof TypeError)return "Не удалось загрузить таблицу по ссылке.";
+    if(c==="no_mcp"||c==="not_granted"||c==="capability_disabled"||c==="capability_removed")return "Доступ к Google Drive для этой страницы не выдан.";
+    if(c==="not_in_manifest"||c==="consent_required")return "Доступ к Google Drive не разрешён. Нажмите «Обновить» и разрешите.";
+    if(c==="needs_reauth")return "Переподключите Google Drive: Settings → Connectors.";
+    if(c==="server_not_connected"||c==="selection_required"||c==="server_not_found")return "Подключите Google Drive в Settings → Connectors.";
+    if(c==="blocked_by_policy"||c==="approval_required")return "Организация не разрешает странице читать Google Drive.";
+    if(c==="no_tab")return "В файле нет вкладки «"+CFG.tab+"».";
+    if(c==="no_dates")return "В шапке вкладки «"+CFG.tab+"» не нашёл ни одной даты"+(e.sample?" (вижу: "+e.sample+")":"")+".";
+    if(c==="no_data")return "Не удалось разобрать ответ Google Drive.";
+    if(c==="server_unavailable"||c==="upstream_error")return "Google Drive не ответил, попробуйте обновить позже.";
+    return "Не удалось прочитать таблицу"+(e&&e.message?": "+e.message:".");
+  }
+  async function loadLive(manual){
+    var t0=Date.now();
+    status={kind:"loading"};renderStatus();
+    var outcome;
+    try{
+      var mcp=null;
+      if(window.claude&&window.claude.use){try{mcp=await window.claude.use("mcp");}catch(_){mcp=null;}}
+      var got;
+      if(mcp)got=await fetchRows(mcp);                       // страница внутри Claude: читаем Google Drive
+      else if(CFG.csvUrl)got={rows:await fetchCsv(),via:"csv"}; // обычный сайт: опубликованная таблица
+      else throw {code:window.claude?"no_mcp":"no_claude"};
+      var parsed=parseGrid(got.rows);
+      if(!parsed.dates)throw {code:"no_dates",sample:(got.rows[0]||[]).slice(0,5).join(" | ")};
+      var sig=JSON.stringify([parsed.games.map(function(g){return g.d.getTime();}),parsed.people]);
+      outcome={ok:true,rows:got.rows,games:parsed.games.length,changed:lastSig===null?undefined:sig!==lastSig,sig:sig};
+    }catch(e){outcome={ok:false,err:e};}
+    var wait=500-(Date.now()-t0);            // чтобы нажатие кнопки было заметно
+    if(manual&&wait>0)await sleep(wait);
+    if(outcome.ok){
+      lastSig=outcome.sig;
+      status={kind:"live",at:new Date(),games:outcome.games,changed:manual?outcome.changed:undefined};
+      try{setGrid(outcome.rows);}
+      catch(e){status={kind:"snap",note:"Ошибка при показе данных: "+(e&&e.message?e.message:e)};renderStatus();}
+    }else{
+      status={kind:"snap",note:explain(outcome.err)};
+      renderStatus();
+    }
+  }
+  $("refresh").addEventListener("click",function(){loadLive(true);});
+
+  setGrid(SNAPSHOT);          // сразу показываем снимок, чтобы страница не была пустой
+  status={kind:"loading"};renderStatus();
+  loadLive(false);
+})();
+</script>
+</html>
