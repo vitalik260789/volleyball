@@ -632,7 +632,7 @@ if(typeof module!=="undefined")module.exports={parseCSV:parseCSV,parseSheetText:
     return list;
   }
   function awIcon(c){c=c.toLowerCase();
-    return /бомбард/.test(c)?"💥":/связующ/.test(c)?"🎯":/защит/.test(c)?"🛡":/подач/.test(c)?"🚀":/полезн/.test(c)?"⭐":/душ/.test(c)?"❤️":/аут/.test(c)?"🌌":/отговор/.test(c)?"🎭":/позже|опазд/.test(c)?"🐢":/сетк/.test(c)?"🕸":"🏅";}
+    return /бомбард/.test(c)?"💥":/связующ/.test(c)?"🎯":/защит/.test(c)?"🛡":/подач/.test(c)?"🚀":/полезн/.test(c)?"⭐":/душ/.test(c)?"❤️":/аут/.test(c)?"🌌":/отговор/.test(c)?"🎭":/позже|опазд/.test(c)?"🐢":/сетк/.test(c)?"🕸":/танцпол|танц/.test(c)?"💃":/падени/.test(c)?"🤸":"🏅";}
   function normName(n){return String(n).toLowerCase().replace(/ё/g,"е").replace(/\s+/g," ").trim();}
   function awardsOpen(){
     var f=new Date(CFG.final[0],CFG.final[1],CFG.final[2]);
