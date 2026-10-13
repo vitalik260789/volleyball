@@ -617,18 +617,22 @@ if(typeof module!=="undefined")module.exports={parseCSV:parseCSV,parseSheetText:
         wi=head.findIndex(function(c){return c.indexOf("победител")===0;}),
         vi=head.findIndex(function(c){return c.indexOf("голос")===0;}),
         ji=head.findIndex(function(c){return c.indexOf("шуточ")===0;}),
-        si=head.findIndex(function(c){return c.indexOf("показ")===0||c.indexOf("открыт")===0;});
+        si=head.findIndex(function(c){return c.indexOf("показ")===0||c.indexOf("открыт")===0;}),
+        di=head.findIndex(function(c){return c.indexOf("когда")===0;}),
+        now=new Date();
     var list=[];
     for(i=h+1;i<rows.length;i++){
       var r=rows[i],cat=String(r[ci]==null?"":r[ci]).trim();
       if(!cat)continue;
       var a=out[cat];
       if(si>=0&&/^(да|yes|1|true)/i.test(String(r[si]==null?"":r[si]).trim()))shown[cat]=true;
+      var dm=di>=0&&/(\d{1,2})[.\/](\d{1,2})[.\/](\d{4})/.exec(String(r[di]==null?"":r[di]));
+      if(dm&&new Date(+dm[3],+dm[2]-1,+dm[1])<=now)shown[cat]=true;   // наступила дата из «Когда»
       if(!a){a=out[cat]={cat:cat,winners:[],votes:"",joke:/^(да|yes|1|true)/i.test(String(r[ji]==null?"":r[ji]).trim())};list.push(a);}
       var w=String(r[wi]==null?"":r[wi]).trim();
       if(w){a.winners.push(w);var v=String(r[vi]==null?"":r[vi]).trim();if(v)a.votes=a.votes||v;}
     }
-    list.forEach(function(a,k){a.shown=k===0||!!shown[a.cat];});   // первая награда видна всегда, остальные — когда в таблице стоит «да»
+    list.forEach(function(a,k){a.shown=k===0||!!shown[a.cat];});   // первая награда видна всегда, остальные — когда наступила дата «Когда» или в «Показывать» стоит «да»
     return list;
   }
   function awIcon(c){c=c.toLowerCase();
