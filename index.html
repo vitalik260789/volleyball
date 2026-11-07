@@ -592,7 +592,7 @@ if(typeof module!=="undefined")module.exports={parseCSV:parseCSV,parseSheetText:
     el.innerHTML=
       '<div class="eyebrow">Карточка игрока</div><h3>'+esc(p.name)+'</h3>'+
       '<div class="meta">'+status+'</div>'+
-      (function(){var w=awardsOf(p.name),t=inKomola(p.name)?'<span class="chip hot">🏆 Участник турнира Комола 2026</span>':"";return (w.length||t)?'<div class="badges">'+t+w.map(function(a){return '<span class="chip hot">'+awIcon(a.cat)+' '+esc(a.cat)+'</span>';}).join("")+'</div>':"";})()+
+      (function(){var w=awardsOf(p.name),t=inKomola(p.name)?'<span class="chip hot">🏆 Участник турнира Комло 2026</span>':"";return (w.length||t)?'<div class="badges">'+t+w.map(function(a){return '<span class="chip hot">'+awIcon(a.cat)+' '+esc(a.cat)+'</span>';}).join("")+'</div>':"";})()+
       '<div class="stats">'+
         '<div class="stat"><b>'+p.pts+'</b><span>'+plural(p.pts,PTS)+' засчитано</span></div>'+
         '<div class="stat"><b>'+p.visits+'</b><span>'+plural(p.visits,VIS)+' из '+model.games.length+'</span></div>'+
@@ -657,7 +657,7 @@ if(typeof module!=="undefined")module.exports={parseCSV:parseCSV,parseSheetText:
       return '<div class="aw'+(a.joke?' joke':'')+'"><div class="ic">'+(open&&a.winners.length?awIcon(a.cat):"🔒")+'</div><b>'+esc(a.cat)+'</b>'+line+'</div>';
     }).join("");
   }
-  // Турнир «Комола 2026»: участники (как в таблице; латиница/кириллица и точки не важны)
+  // Турнир «Комло 2026»: участники (как в таблице; латиница/кириллица и точки не важны)
   var KOMOLA=["Яскуловский В.","Печи Л.","Голуб И.","Южаков А.","Южакова Д.","Бабич А. (он)","Бабич А. (она)"];
   function pKey(n){var m={a:"а",e:"е",o:"о",p:"р",c:"с",x:"х",y:"у",k:"к",m:"м",t:"т",b:"в",h:"н"};
     return normName(n).replace(/[a-z]/g,function(c){return m[c]||c;}).replace(/[.,]/g,"").replace(/\s+/g," ").trim();}
